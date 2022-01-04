@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+    build:
+        desc: Build the app
+        cmds:
+        - GOFLAGS=-mod=mod go build -o bin/story-time-discord .
+
+    run: 
+        desc: Run the app
+        cmds:
+        - GOFLAGS=-mod=mod go run .
+
+    bot:
+        desc: Execute the bot
+        cmds:
+        - ./bin/story-time-discord
