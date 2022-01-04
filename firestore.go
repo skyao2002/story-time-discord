@@ -6,12 +6,11 @@ import (
 	"log"
 	"time"
 
-
 	"cloud.google.com/go/firestore"
 )
 
 var (
-	ctx context.Context
+	ctx    context.Context
 	client *firestore.Client
 )
 
@@ -44,13 +43,14 @@ func createClient() *firestore.Client {
 type tooManyRequestsError struct {
 	cooldown int
 }
+
 func (e *tooManyRequestsError) Error() string {
-    return fmt.Sprintf("Whoa there, you exceeded your quota of %d requests per minute, please wait %d seconds. ", callsPerMin, e.cooldown)
+	return fmt.Sprintf("Whoa there, you exceeded your quota of %d requests per minute, please wait %d seconds. ", callsPerMin, e.cooldown)
 }
 
 func userAccess(userID string, username string) error {
 	userDoc := client.Collection("users").Doc(userID)
-	dsnap, _ := userDoc.Get(ctx)
+	dsnap, err := userDoc.Get(ctx)
 	totalCalls := int64(1)
 	minuteCalls := int64(1)
 	lastAccessed := time.Now().Unix()
@@ -58,17 +58,21 @@ func userAccess(userID string, username string) error {
 	// 	log.Println("UNABLE TO GET DOC",dsnap.Exists())
 	// 	return err
 	// }
+	if dsnap == nil {
+		log.Println("data snap is null")
+		return err
+	}
 
 	if dsnap.Exists() {
 		dmap := dsnap.Data()
 		totalCalls, _ = dmap["totalCalls"].(int64)
 		minuteCalls, _ = dmap["minuteCalls"].(int64)
-		
+
 		storedLastAccessed, _ := dmap["lastAccessed"].(int64)
 		timeElapsed := lastAccessed - storedLastAccessed
 		if timeElapsed < int64(60) {
 			if minuteCalls >= callsPerMin {
-				return &tooManyRequestsError{60-int(timeElapsed)}
+				return &tooManyRequestsError{60 - int(timeElapsed)}
 			} else {
 				lastAccessed, _ = dmap["lastAccessed"].(int64)
 				totalCalls++
@@ -82,10 +86,10 @@ func userAccess(userID string, username string) error {
 	}
 
 	toWrite := map[string]interface{}{
-		"username": username,
-		"totalCalls":  totalCalls,
+		"username":     username,
+		"totalCalls":   totalCalls,
 		"minuteCalls":  minuteCalls,
-		"lastAccessed":  lastAccessed,
+		"lastAccessed": lastAccessed,
 	}
 
 	userDoc.Set(ctx, toWrite)
